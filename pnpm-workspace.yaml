@@ -1,4 +1,5 @@
 packages:
+  - FRONTEND
   - artifacts/*
   - lib/*
   - scripts
@@ -35,3 +36,6 @@ onlyBuiltDependencies:
 overrides:
   esbuild: "0.27.3"
   "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"
+
+allowBuilds:
+  esbuild: true
