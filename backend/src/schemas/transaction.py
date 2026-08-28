@@ -4,16 +4,18 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
-from src.models.transaction import TransactionStatus
+from src.models.transaction import TransactionStatus, TransactionType
 
 
 class TransactionBase(BaseModel):
+    type: TransactionType = TransactionType.SALE
     item: str
-    quantity: int
+    quantity: int = 1
     total: Decimal
-    customer: str = "Walk-in customer"
+    counterparty: str = "Walk-in customer"
     status: TransactionStatus = TransactionStatus.PENDING
     product_id: uuid.UUID | None = None
+    source_transcript: str | None = None
 
 
 class TransactionCreate(TransactionBase):
@@ -23,10 +25,11 @@ class TransactionCreate(TransactionBase):
 class TransactionUpdate(BaseModel):
     """All fields optional so callers can send a partial patch."""
 
+    type: TransactionType | None = None
     item: str | None = None
     quantity: int | None = None
     total: Decimal | None = None
-    customer: str | None = None
+    counterparty: str | None = None
     status: TransactionStatus | None = None
     product_id: uuid.UUID | None = None
 

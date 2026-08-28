@@ -1,6 +1,7 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.models.transaction import Transaction
+from src.models.transaction import Transaction, TransactionStatus, TransactionType
 from src.repository.base import BaseRepository
 from src.schemas.transaction import TransactionCreate, TransactionUpdate
 
@@ -8,3 +9,19 @@ from src.schemas.transaction import TransactionCreate, TransactionUpdate
 class TransactionRepository(BaseRepository[Transaction, TransactionCreate, TransactionUpdate]):
     def __init__(self, db: Session):
         super().__init__(Transaction, db)
+
+    def list_filtered(
+        self,
+        *,
+        type: TransactionType | None = None,
+        status: TransactionStatus | None = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> list[Transaction]:
+        stmt = select(Transaction)
+        if type is not None:
+            stmt = stmt.where(Transaction.type == type)
+        if status is not None:
+            stmt = stmt.where(Transaction.status == status)
+        stmt = stmt.order_by(Transaction.created_at.desc()).offset(skip).limit(limit)
+        return list(self.db.scalars(stmt).all())

@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import get_settings
 from src.core.exceptions import NotFoundError, not_found_handler
 from src.database import Base, engine
-from src.routers import dashboard, inventory, transactions
+from src.routers import assistant, dashboard, inventory, transactions
 
 settings = get_settings()
 
@@ -23,6 +23,7 @@ app.add_exception_handler(NotFoundError, not_found_handler)
 app.include_router(transactions.router, prefix="/api")
 app.include_router(inventory.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
+app.include_router(assistant.router, prefix="/api")
 
 
 @app.on_event("startup")
