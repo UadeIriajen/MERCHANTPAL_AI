@@ -30,6 +30,8 @@ class Transaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     __tablename__ = "transactions"
 
+    owner_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+
     type: Mapped[TransactionType] = mapped_column(
         Enum(TransactionType, name="transaction_type"), default=TransactionType.SALE
     )

@@ -128,6 +128,24 @@ alembic upgrade head
 uvicorn src.main:app --reload --port 8000
 ```
 
+## Supabase setup
+
+1. In Supabase Dashboard, open **Project Settings -> API** and copy the
+  **Project URL** and **anon public key**.
+2. Put the Project URL and anon key in both `FRONTEND/.env` as
+  `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, and `backend/.env` as
+  `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
+3. Run `alembic upgrade head` from `backend/` to add the `owner_id` columns.
+4. Restart the frontend and backend.
+
+When `SUPABASE_URL` and `SUPABASE_ANON_KEY` are set, all business APIs require
+the Supabase bearer token and scope products, transactions, analytics, assistant
+answers, and notifications to the signed-in user. `SUPABASE_JWT_SECRET` is only
+needed for legacy HS256 projects; modern projects can leave it empty.
+
+The public anon key is safe to use in the browser. Never put a Supabase
+`service_role` key in frontend files or commit it to the repository.
+
 Then visit `http://localhost:8000/docs` for interactive Swagger UI.
 
 ## Notes

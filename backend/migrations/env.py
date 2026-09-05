@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from src.config import get_settings
 from src.database import Base
-from src.models import Product, Transaction  # noqa: F401  (registers tables on Base.metadata)
+from src.models import Product, Profile, Transaction  # noqa: F401  (registers tables on Base.metadata)
 
 config = context.config
 

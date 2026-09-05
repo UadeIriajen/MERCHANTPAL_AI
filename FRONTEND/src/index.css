@@ -148,6 +148,7 @@
 .bottom-item.active { color: hsl(var(--primary)); }
 .bottom-item.active .nav-icon { background: #ccfbf1; }
 .offline-strip { background: #fff3d8; color: #7b4d00; min-height: 30px; padding: 7px 16px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; font-weight: 600; }
+.error-banner { margin: 12px 0; padding: 11px 13px; border: 1px solid #f0b9b2; border-radius: 10px; background: #fff1ef; color: #a43d32; font-size: 13px; line-height: 19px; }
 .greeting h1, .page-heading h1, .screen-content > h1, .form-page h1, .clarify-page h1, .analytics-page h1, .offline-page h1 { margin: 5px 0 7px; font-size: 28px; line-height: 36px; letter-spacing: -.035em; }
 .greeting p, .muted { color: #566260; }
 .eyebrow { display: block; color: #57716c; font-size: 11px; line-height: 16px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }

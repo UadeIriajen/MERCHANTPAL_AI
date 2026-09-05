@@ -11,7 +11,6 @@ callers don't need to know which path ran.
 import logging
 from decimal import Decimal
 
-from anthropic import Anthropic
 from pydantic import BaseModel
 
 from src.models.transaction import TransactionType
@@ -42,6 +41,8 @@ class _LLMTransaction(BaseModel):
 
 def parse_transcript_with_llm(transcript: str) -> ParsedTransaction:
     try:
+        from anthropic import Anthropic
+
         client = Anthropic()  # reads ANTHROPIC_API_KEY from the environment
         response = client.messages.parse(
             model="claude-opus-5",

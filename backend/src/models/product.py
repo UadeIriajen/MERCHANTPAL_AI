@@ -12,6 +12,8 @@ class Product(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     __tablename__ = "products"
 
+    owner_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+
     name: Mapped[str] = mapped_column(String(200))
     category: Mapped[str] = mapped_column(String(100))
     price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
