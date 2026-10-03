@@ -37,6 +37,8 @@ def _adjust_stock(db: Session, transaction: Transaction, sign: int, owner_id: st
 
 
 def create_transaction(db: Session, payload: TransactionCreate, owner_id: str | None = None) -> Transaction:
+    if _STOCK_DIRECTION[payload.type] != 0 and payload.product_id is None:
+        raise ConflictError("Select an inventory product for sales and purchases so stock can be updated")
     request_key = payload.source_transcript
     if request_key and request_key.startswith("idempotency:"):
         existing = db.scalar(

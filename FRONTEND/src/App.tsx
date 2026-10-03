@@ -16,14 +16,14 @@ const naira = (amount: number) => `₦${amount.toLocaleString('en-NG')}`;
 const initialProducts = defaultProducts;
 const initialTransactions = defaultTransactions;
 type Product = MockProduct;
-type Transaction = MockTransaction;
+type Transaction = MockTransaction & { type?: ApiTransaction['type'] };
 const read = readLocal;
 const write = writeLocal;
 const fallbackUser: MockUser = { name: 'Amina', business: 'Amina’s Kitchen', identifier: 'demo@merchantpal.app' };
 const getCurrentUser = () => read<MockUser>('mp-user', fallbackUser);
 const initials = (name: string) => name.trim().split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
 const productFromApi = (product: ApiProduct): Product => ({ ...product, price: money(product.price), cost: money(product.cost) });
-const transactionFromApi = (transaction: ApiTransaction): Transaction => ({ id: transaction.id, item: transaction.item, quantity: transaction.quantity, total: money(transaction.total), customer: transaction.counterparty, date: new Date(transaction.created_at).toLocaleString(), status: transaction.status });
+const transactionFromApi = (transaction: ApiTransaction): Transaction => ({ id: transaction.id, type: transaction.type, item: transaction.item, quantity: transaction.quantity, total: money(transaction.total), customer: transaction.counterparty, date: new Date(transaction.created_at).toLocaleString(), status: transaction.status });
 
 function BrandLogo({ small = false }: { small?: boolean }) {
   return <img className={`brand-logo ${small ? 'brand-logo-small' : ''}`} src="/merchantpal-logo.jpg" alt="MerchantPal" />;
@@ -145,20 +145,20 @@ function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [error, setError] = useState('');
   useEffect(() => { api.dashboard().then(setStats).catch((reason: unknown) => setError(reason instanceof ApiError ? reason.message : 'Could not load your dashboard.')); }, []);
-  const fresh = !stats;
   const sales = money(stats?.revenue || 0);
   const profit = money(stats?.profit || 0);
   return <Shell><AppHeader /><main className="screen-content fade-in"><div className="greeting"><span className="eyebrow">Tuesday, 24 June 2025</span><h1>Good morning, {user.name}</h1><p>Here’s how your business is doing today.</p></div>
     {error && <div className="error-banner" role="alert">{error}</div>}
     <Link href="/assistant/voice" className="talk-card pressable" data-testid="link-talk-assistant"><div className="talk-icon"><Sparkles size={23} /></div><div><span className="label">YOUR BUSINESS COMPANION</span><h2>Talk to MerchantPal</h2><p>Tell me what happened today.</p></div><ArrowRight size={20} /></Link>
-    <section className="section-block"><div className="section-heading"><h2>Today at a glance</h2><Link href="/analytics">See analytics</Link></div><div className="stats-grid"><StatCard label="SALES" value={naira(sales)} /><StatCard label="PROFIT" value={naira(profit)} tone="mint" /></div></section>
-    <section className="section-block"><div className="section-heading"><h2>Business health</h2><Link href="/insights">View insights</Link></div><div className="health-grid"><Link href="/analytics" className="health-card"><span className="health-icon expense"><DollarSign size={15} /></span><span className="label muted">EXPENSES</span><strong>{fresh ? '₦0' : '₦9,450'}</strong><small>this week</small></Link><Link href="/analytics" className="health-card"><span className="health-icon profit"><TrendingUp size={15} /></span><span className="label muted">NET PROFIT</span><strong>{fresh ? '₦0' : '₦72,850'}</strong><small>this week</small></Link><Link href="/insights" className="health-card health-insight"><span className="health-icon insight"><Lightbulb size={15} /></span><span className="label muted">INSIGHT</span><strong>{fresh ? 'Start tracking' : 'Fridays are strongest'}</strong><small>tap to learn more</small></Link></div></section>
+    <section className="section-block"><div className="section-heading"><h2>Recorded totals</h2><Link href="/analytics">See analytics</Link></div><div className="stats-grid"><StatCard label="SALES" value={naira(sales)} /><StatCard label="PROFIT" value={naira(profit)} tone="mint" /></div></section>
+    <section className="section-block"><div className="section-heading"><h2>Business health</h2><Link href="/transactions">View transactions</Link></div><div className="health-grid"><Link href="/analytics" className="health-card"><span className="health-icon expense"><DollarSign size={15} /></span><span className="label muted">PURCHASES</span><strong>{naira(money(stats?.total_purchases || 0))}</strong><small>all recorded</small></Link><Link href="/analytics" className="health-card"><span className="health-icon expense"><DollarSign size={15} /></span><span className="label muted">EXPENSES</span><strong>{naira(money(stats?.expenses || 0))}</strong><small>all recorded</small></Link><Link href="/analytics" className="health-card"><span className="health-icon profit"><TrendingUp size={15} /></span><span className="label muted">NET PROFIT</span><strong>{naira(profit)}</strong><small>all recorded</small></Link></div></section>
     <section className="section-block"><div className="section-heading"><h2>Inventory</h2><Link href="/inventory">View all</Link></div><div className="stock-card"><div className="stock-header"><div className="stock-symbol"><Package size={18} /></div><div><strong>{stats?.total_transactions || 0} transactions</strong><p>{naira(money(stats?.inventory_value || 0))} total value</p></div><span className="stock-warning">{stats?.low_stock_count || 0} low stock</span></div></div></section>
     <section className="section-block"><div className="section-heading"><h2>Recent sales</h2><Link href="/transactions">See all</Link></div><p className="muted">Open Transactions to see the latest records from your backend.</p></section>
   </main></Shell>;
 }
 
 function Assistant() {
+  const [, navigate] = useLocation();
   const user = getCurrentUser();
   const [messages, setMessages] = useState<{ from: 'user' | 'bot'; text: string }[]>([{ from: 'bot', text: `Hi ${user.name.split(' ')[0]}. Tell me about a sale, an expense, or anything on your mind.` }]);
   const [input, setInput] = useState('');
@@ -181,7 +181,7 @@ function Assistant() {
   return <Shell><AppHeader title="Assistant" action={<IconButton label="assistant-help"><CircleHelp size={20} /></IconButton>} /><main className="assistant-page">
     <div className="assistant-hero"><div className="assistant-orb"><Sparkles size={28} /></div><span className="eyebrow">MERCHANTPAL AI</span><h1>Your business,<br />in plain language.</h1><p>Ask a question or tell me what happened.</p></div>
     <div className="chat-list">{messages.map((message, i) => <div key={`${message.from}-${i}`} className={`chat-row ${message.from}`}><div className="chat-bubble">{message.text}</div></div>)}</div>
-    {messages.length > 2 && <div className="sale-draft surface-card rise-in"><div className="sale-draft-head"><span className="icon-tile mint"><Receipt size={17} /></span><div><span className="label muted">DRAFT SALE</span><strong>Jollof Rice + Chicken</strong></div><span className="sale-status">Review</span></div><div className="sale-total"><span>Total</span><strong>₦12,000</strong></div><div className="sale-draft-actions"><Button variant="outline" onClick={() => setMessages(m => m.slice(0, -1))}>Edit</Button><Button onClick={() => setMessages(m => [...m, { from: 'bot', text: 'Sale recorded. Your inventory has been updated.' }])}>Confirm sale <Check size={16} /></Button></div></div>}
+    {messages.length > 2 && <div className="sale-draft surface-card rise-in"><div className="sale-draft-head"><span className="icon-tile mint"><Receipt size={17} /></span><div><span className="label muted">DRAFT SALE</span><strong>Jollof Rice + Chicken</strong></div><span className="sale-status">Review</span></div><div className="sale-total"><span>Total</span><strong>₦12,000</strong></div><div className="sale-draft-actions"><Button variant="outline" onClick={() => setMessages(m => m.slice(0, -1))}>Edit</Button><Button onClick={() => navigate('/transactions/new')}>Choose products <ArrowRight size={16} /></Button></div></div>}
     <div className="assistant-composer"><Link href="/assistant/voice" className="voice-mini" aria-label="start voice recording" data-testid="link-voice-recording"><Mic size={19} /></Link><input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && void send()} placeholder="Ask MerchantPal anything…" data-testid="input-assistant" disabled={loading} /><IconButton label="send-message" onClick={() => void send()}><ArrowRight size={19} /></IconButton></div>
   </main></Shell>;
 }
@@ -193,8 +193,8 @@ function VoiceRecording() {
 
 function Clarify() {
   const [, navigate] = useLocation(); const [choice, setChoice] = useState('sale'); const [saving, setSaving] = useState(false); const [error, setError] = useState('');
-  const confirm = async () => { if (choice !== 'sale' || saving) return; setSaving(true); try { const transaction = await api.transactions.create({ type: 'sale', item: 'Jollof Rice + Chicken', quantity: 2, total: 12000, counterparty: 'Kunle', status: 'paid', source_transcript: createRequestKey() }); navigate(`/transactions/${transaction.id}/confirm`); } catch (reason) { setError(reason instanceof ApiError ? reason.message : 'Could not record this sale.'); } finally { setSaving(false); } };
-  return <Shell><AppHeader title="Review note" back="/assistant/voice" /><main className="screen-content clarify-page"><span className="eyebrow">I HEARD</span><h1>“Sold two plates of jollof and a chicken to Kunle for twelve thousand.”</h1>{error && <div className="error-banner" role="alert">{error}</div>}<div className="clarify-note"><Sparkles size={17} /><span>I’ve turned that into a sale. Is this right?</span></div><div className="clarify-card surface-card"><div className="sale-draft-head"><span className="icon-tile mint"><Receipt size={17} /></span><div><span className="label muted">SALE</span><strong>Jollof Rice + Chicken</strong></div></div><div className="clarify-line"><span>Customer</span><b>Kunle</b></div><div className="clarify-line"><span>Quantity</span><b>2 plates + 1 piece</b></div><div className="clarify-line"><span>Total</span><b className="money">₦12,000</b></div></div><h3>What should I do with this?</h3><div className="choice-list">{[['sale', 'Record as a sale', 'Updates your sales and inventory'], ['note', 'Save as a note', 'Keep it for later']].map(([key, label, sub]) => <button key={key} className={`choice ${choice === key ? 'selected' : ''}`} onClick={() => setChoice(key)}><span className="radio">{choice === key && <i />}</span><span><b>{label}</b><small>{sub}</small></span></button>)}</div><Button className="full-width" disabled={saving} onClick={() => void confirm()}>{saving ? 'Recording…' : choice === 'sale' ? 'Confirm sale' : 'Save note'} <Check size={17} /></Button></main></Shell>;
+  const confirm = () => { if (choice === 'sale') navigate('/transactions/new'); };
+  return <Shell><AppHeader title="Review note" back="/assistant/voice" /><main className="screen-content clarify-page"><span className="eyebrow">I HEARD</span><h1>“Sold two plates of jollof and a chicken to Kunle for twelve thousand.”</h1>{error && <div className="error-banner" role="alert">{error}</div>}<div className="clarify-note"><Sparkles size={17} /><span>Choose the matching inventory products before recording this sale.</span></div><div className="clarify-card surface-card"><div className="sale-draft-head"><span className="icon-tile mint"><Receipt size={17} /></span><div><span className="label muted">SALE</span><strong>Jollof Rice + Chicken</strong></div></div><div className="clarify-line"><span>Customer</span><b>Kunle</b></div><div className="clarify-line"><span>Quantity</span><b>2 plates + 1 piece</b></div><div className="clarify-line"><span>Total</span><b className="money">₦12,000</b></div></div><h3>What should I do with this?</h3><div className="choice-list">{[['sale', 'Record as a sale', 'Updates your sales and inventory'], ['note', 'Save as a note', 'Keep it for later']].map(([key, label, sub]) => <button key={key} className={`choice ${choice === key ? 'selected' : ''}`} onClick={() => setChoice(key)}><span className="radio">{choice === key && <i />}</span><span><b>{label}</b><small>{sub}</small></span></button>)}</div><Button className="full-width" onClick={confirm}>{choice === 'sale' ? 'Choose products' : 'Save note'} <Check size={17} /></Button></main></Shell>;
 }
 
 function Inventory() {
@@ -226,13 +226,52 @@ function ProductDetails() {
 }
 
 function TransactionRow({ transaction, onClick }: { transaction: Transaction; onClick?: () => void }) {
-  return <button onClick={onClick} className="transaction-row" data-testid={`row-transaction-${transaction.id}`}><span className={`transaction-mark ${transaction.status}`}><Receipt size={16} /></span><span className="transaction-info"><strong>{transaction.item}</strong><small>{transaction.date} · {transaction.customer}</small></span><span className="transaction-amount"><b>{naira(transaction.total)}</b><small>{transaction.status === 'paid' ? 'Paid' : 'Pending'}</small></span><ChevronRight size={17} className="chevron" /></button>;
+  return <button onClick={onClick} className="transaction-row" data-testid={`row-transaction-${transaction.id}`}><span className={`transaction-mark ${transaction.status}`}><Receipt size={16} /></span><span className="transaction-info"><strong>{transaction.item}</strong><small>{transaction.type || 'sale'} · {transaction.date} · {transaction.customer}</small></span><span className="transaction-amount"><b>{naira(transaction.total)}</b><small>{transaction.status === 'paid' ? 'Paid' : 'Pending'}</small></span><ChevronRight size={17} className="chevron" /></button>;
 }
 function Transactions() {
   const [, navigate] = useLocation(); const [query, setQuery] = useState(''); const [transactions, setTransactions] = useState<Transaction[]>([]); const [error, setError] = useState('');
   useEffect(() => { api.transactions.list().then(items => setTransactions(items.map(transactionFromApi))).catch((reason: unknown) => setError(reason instanceof ApiError ? reason.message : 'Could not load transactions.')); }, []);
   const visible = transactions.filter(t => t.item.toLowerCase().includes(query.toLowerCase()));
-  return <Shell><AppHeader /><main className="screen-content"><div className="page-heading"><div><span className="eyebrow">MONEY IN, MONEY OUT</span><h1>Transactions</h1></div><IconButton label="new-transaction" onClick={() => navigate('/assistant/voice')}><Plus size={21} /></IconButton></div>{error && <div className="error-banner" role="alert">{error}</div>}<div className="search-box"><Search size={18} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search transactions…" /></div><div className="transaction-total surface-card"><span className="label muted">RECORDED SALES</span><strong>{naira(visible.filter(t => t.status === 'paid').reduce((sum, t) => sum + t.total, 0))}</strong></div><div className="section-heading"><h2>Recent activity</h2><Button variant="ghost" onClick={() => undefined}><Filter size={15} /> Filter</Button></div><div className="transaction-list">{visible.map(t => <TransactionRow key={t.id} transaction={t} onClick={() => navigate(`/transactions/${t.id}`)} />)}</div></main></Shell>;
+  return <Shell><AppHeader /><main className="screen-content"><div className="page-heading"><div><span className="eyebrow">MONEY IN, MONEY OUT</span><h1>Transactions</h1></div><IconButton label="new-transaction" onClick={() => navigate('/transactions/new')}><Plus size={21} /></IconButton></div>{error && <div className="error-banner" role="alert">{error}</div>}<div className="search-box"><Search size={18} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search transactions…" /></div><div className="transaction-total surface-card"><span className="label muted">RECORDED SALES</span><strong>{naira(visible.filter(t => t.type === 'sale' && t.status === 'paid').reduce((sum, t) => sum + t.total, 0))}</strong></div><div className="section-heading"><h2>Recent activity</h2><Button variant="ghost" onClick={() => undefined}><Filter size={15} /> Filter</Button></div><div className="transaction-list">{visible.map(t => <TransactionRow key={t.id} transaction={t} onClick={() => navigate(`/transactions/${t.id}`)} />)}</div></main></Shell>;
+}
+
+function NewTransaction() {
+  const [, navigate] = useLocation();
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [type, setType] = useState<'sale' | 'purchase' | 'expense'>('sale');
+  const [productId, setProductId] = useState('');
+  const [form, setForm] = useState({ item: '', quantity: '1', total: '', counterparty: '', status: 'paid' as 'paid' | 'pending' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { api.products.list().then(setProducts).catch(() => setProducts([])); }, []);
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      const selected = products.find(product => product.id === productId);
+      if (type !== 'expense' && !selected) {
+        setError('Select an inventory product to update its stock.');
+        return;
+      }
+      await api.transactions.create({
+        type,
+        item: form.item.trim(),
+        quantity: Number(form.quantity),
+        total: Number(form.total),
+        counterparty: form.counterparty.trim() || (type === 'sale' ? 'Walk-in customer' : type === 'purchase' ? 'Supplier' : 'Payee'),
+        status: form.status,
+        ...(selected && type !== 'expense' ? { product_id: selected.id } : {}),
+      });
+      navigate('/transactions');
+    } catch (reason) {
+      setError(reason instanceof ApiError ? reason.message : 'Could not record this transaction.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  return <Shell><AppHeader title="Record transaction" back="/transactions" /><main className="screen-content form-page"><span className="eyebrow">MONEY IN, MONEY OUT</span><h1>Record what happened.</h1>{error && <div className="error-banner" role="alert">{error}</div>}<form className="form-stack" onSubmit={submit}><label>Type<select value={type} onChange={event => setType(event.target.value as typeof type)}><option value="sale">Sale</option><option value="purchase">Purchase</option><option value="expense">Expense</option></select></label><label>Inventory product (required for sales and purchases)<select value={productId} onChange={event => { const selected = products.find(product => product.id === event.target.value); setProductId(event.target.value); if (selected) setForm(current => ({ ...current, item: selected.name })); }}><option value="">No linked product</option>{products.map(product => <option key={product.id} value={product.id}>{product.name} · {product.stock} in stock</option>)}</select></label><label>Item or description<input value={form.item} onChange={event => setForm(current => ({ ...current, item: event.target.value }))} required /></label><div className="two-fields"><label>Quantity<input type="number" min="1" value={form.quantity} onChange={event => setForm(current => ({ ...current, quantity: event.target.value }))} required /></label><label>Total amount<input type="number" min="0.01" step="0.01" value={form.total} onChange={event => setForm(current => ({ ...current, total: event.target.value }))} required /></label></div><label>{type === 'sale' ? 'Customer' : type === 'purchase' ? 'Supplier' : 'Paid to'}<input value={form.counterparty} onChange={event => setForm(current => ({ ...current, counterparty: event.target.value }))} /></label><label>Payment status<select value={form.status} onChange={event => setForm(current => ({ ...current, status: event.target.value as typeof form.status }))}><option value="paid">Paid</option><option value="pending">Pending</option></select></label><Button type="submit" disabled={saving} className="full-width">{saving ? 'Recording…' : 'Record transaction'} <Check size={17} /></Button></form></main></Shell>;
 }
 function TransactionDetails() {
   const [, navigate] = useLocation(); const { id } = useParams<{ id: string }>(); const transaction = initialTransactions.find(t => t.id === id) || initialTransactions[0];
@@ -272,7 +311,7 @@ function Router() {
     <Route path="/welcome" component={Welcome} /><Route path="/login" component={() => <Login />} /><Route path="/signup" component={() => <Login signup />} /><Route path="/setup" component={Setup} />
     <Route path="/" component={Dashboard} /><Route path="/assistant" component={Assistant} /><Route path="/assistant/voice" component={VoiceRecording} /><Route path="/assistant/clarify" component={Clarify} />
     <Route path="/inventory" component={Inventory} /><Route path="/inventory/empty" component={() => <Shell><AppHeader title="Inventory" back="/inventory" /><main className="screen-content"><EmptyInventory onAdd={() => undefined} /></main></Shell>} /><Route path="/inventory/add" component={AddProduct} /><Route path="/inventory/:id/edit" component={AddProduct} /><Route path="/inventory/:id" component={ProductDetails} />
-    <Route path="/transactions" component={Transactions} /><Route path="/transactions/empty" component={() => <Shell><AppHeader title="Transactions" back="/" /><main className="screen-content"><div className="empty-state surface-card"><div className="empty-illustration"><Receipt size={32} /></div><h2>No sales yet.</h2><p>Record your first sale with MerchantPal Assistant.</p><Link href="/assistant/voice" className="mp-button mp-primary full-width">Record a sale <Mic size={17} /></Link></div></main></Shell>} /><Route path="/transactions/:id/confirm" component={TransactionConfirmation} /><Route path="/transactions/:id" component={TransactionDetails} />
+    <Route path="/transactions" component={Transactions} /><Route path="/transactions/new" component={NewTransaction} /><Route path="/transactions/empty" component={() => <Shell><AppHeader title="Transactions" back="/" /><main className="screen-content"><div className="empty-state surface-card"><div className="empty-illustration"><Receipt size={32} /></div><h2>No sales yet.</h2><p>Record your first sale with MerchantPal Assistant.</p><Link href="/transactions/new" className="mp-button mp-primary full-width">Record a transaction <Plus size={17} /></Link></div></main></Shell>} /><Route path="/transactions/:id/confirm" component={TransactionConfirmation} /><Route path="/transactions/:id" component={TransactionDetails} />
     <Route path="/analytics" component={Analytics} /><Route path="/insights" component={Insights} /><Route path="/notifications" component={Notifications} /><Route path="/profile" component={Profile} /><Route path="/offline" component={Offline} /><Route component={NotFoundPage} />
   </Switch></ErrorBoundary>;
 }
